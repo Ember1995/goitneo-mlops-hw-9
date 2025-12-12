@@ -24,6 +24,54 @@ resource "helm_release" "argo" {
   ]
 }
 
+resource "kubernetes_manifest" "namespaces_appset" {
+  manifest = {
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "ApplicationSet"
+    metadata = {
+      name      = "namespaces-appset"
+      namespace = var.argocd_namespace
+    }
+    spec = {
+      generators = [{
+        git = {
+          repoURL    = var.app_repo_url
+          revision   = var.app_repo_branch
+          directories = [
+            { path = "namespaces/*" }
+          ]
+        }
+      }]
+      template = {
+        metadata = {
+          name      = "ns-{{path.basename}}"
+          namespace = var.argocd_namespace
+        }
+        spec = {
+          project = "default"
+          source = {
+            repoURL        = var.app_repo_url
+            targetRevision = var.app_repo_branch
+            path           = "{{path}}"
+            directory = { recurse = true }
+          }
+          destination = {
+            server    = "https://kubernetes.default.svc"
+            namespace = "{{path.basename}}"
+          }
+          syncPolicy = {
+            automated = { prune = true, selfHeal = true }
+            syncOptions = ["CreateNamespace=true"]
+          }
+          revisionHistoryLimit = 2
+        }
+      }
+    }
+  }
+
+  depends_on = [helm_release.argo]
+}
+
 resource "kubernetes_manifest" "apps_appset" {
   manifest = {
     apiVersion = "argoproj.io/v1alpha1"
@@ -90,3 +138,61 @@ resource "kubernetes_manifest" "apps_appset" {
   depends_on = [helm_release.argo]
 }
 
+resource "kubernetes_manifest" "monitoring_appset" {
+  manifest = {
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "ApplicationSet"
+    metadata = {
+      name      = "monitoring-appset"
+      namespace = var.argocd_namespace
+    }
+    spec = {
+      generators = [{
+        git = {
+          repoURL    = var.app_repo_url
+          revision   = var.app_repo_branch
+          directories = [
+            { path = "apps/monitoring/*" }
+          ]
+        }
+      }]
+      template = {
+        metadata = {
+          name      = "mon-{{path.basename}}"
+          namespace = var.argocd_namespace
+        }
+        spec = {
+          project = "default"
+          destination = {
+            server    = "https://kubernetes.default.svc"
+            namespace = "monitoring"
+          }
+          sources = [
+            {
+              repoURL        = "https://prometheus-community.github.io/helm-charts"
+              chart          = "{{path.basename}}"
+              targetRevision = "65.0.0"
+              helm = {
+                valueFiles = [
+                  "$values/{{path}}/values.yaml"
+                ]
+              }
+            },
+            {
+              repoURL        = var.app_repo_url
+              targetRevision = var.app_repo_branch
+              ref            = "values"
+            }
+          ]
+          syncPolicy = {
+            automated = { prune = true, selfHeal = true }
+            syncOptions = ["CreateNamespace=true"]
+          }
+          revisionHistoryLimit = 2
+        }
+      }
+    }
+  }
+
+  depends_on = [helm_release.argo]
+}
