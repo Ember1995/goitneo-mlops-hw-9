@@ -24,72 +24,13 @@ resource "helm_release" "argo" {
   ]
 }
 
-resource "kubernetes_manifest" "namespaces_appset" {
-  manifest = {
-    apiVersion = "argoproj.io/v1alpha1"
-    kind       = "ApplicationSet"
-    metadata = {
-      name      = "namespaces-appset"
-      namespace = var.argocd_namespace
-    }
-    spec = {
-      generators = [{
-        git = {
-          repoURL    = var.app_repo_url
-          revision   = var.app_repo_branch
-          directories = [
-            {
-              path = "namespaces/*"
-            }
-          ]
-        }
-      }]
-      template = {
-        metadata = {
-          name      = "ns-{{path.basename}}"
-          namespace = var.argocd_namespace
-        }
-        spec = {
-          project = "default"
-          source = {
-            repoURL        = var.app_repo_url
-            targetRevision = var.app_repo_branch
-            path           = "{{path}}"
-            directory = {
-              recurse = true     # читати підкаталоги
-            }
-          }
-          destination = {
-            server    = "https://kubernetes.default.svc"
-            namespace = "{{path.basename}}"  # application / infra-tools / ...
-          }
-          syncPolicy = {
-            automated = {
-              prune    = true
-              selfHeal = true
-            }
-            syncOptions = [
-              "CreateNamespace=true"
-            ]
-          }
-          revisionHistoryLimit = 2
-        }
-      }
-    }
-  }
-
-  depends_on = [
-    helm_release.argo
-  ]
-}
-
 resource "kubernetes_manifest" "apps_appset" {
   manifest = {
     apiVersion = "argoproj.io/v1alpha1"
     kind       = "ApplicationSet"
     metadata = {
       name      = "apps-appset"
-      namespace = var.argocd_namespace
+      namespace = var.argocd_namespace  # infra-tools
     }
     spec = {
       generators = [{
@@ -97,47 +38,55 @@ resource "kubernetes_manifest" "apps_appset" {
           repoURL    = var.app_repo_url
           revision   = var.app_repo_branch
           directories = [
-            {
-              path = "apps/*"
-            }
+            { path = "apps/*/*" } # apps/<namespace>/<app>
           ]
         }
       }]
+
       template = {
         metadata = {
-          name      = "{{path.basename}}"     # mlflow, monitoring, ...
-          namespace = var.argocd_namespace    # ArgoCD ns (infra-tools)
+          name      = "{{path.segments[2]}}"   # app name (mlflow)
+          namespace = var.argocd_namespace      # where ArgoCD lives
         }
+
         spec = {
           project = "default"
-          source = {
-            repoURL        = var.app_repo_url
-            targetRevision = var.app_repo_branch
-            path           = "{{path}}"
-            directory = {
-              recurse = true
-            }
-          }
+
           destination = {
             server    = "https://kubernetes.default.svc"
-            namespace = "application"          # куда деплоится MLflow (у тебя так)
+            namespace = "{{path.segments[1]}}" # target namespace (application)
           }
-          syncPolicy = {
-            automated = {
-              prune    = true
-              selfHeal = true
+
+          # Multi-source: chart из Helm repo + values из git
+          sources = [
+            {
+              repoURL        = "https://community-charts.github.io/helm-charts"
+              chart          = "{{path.segments[2]}}"    # имя чарта = имя папки (mlflow)
+              targetRevision = "0.1.10"                  # можно вынести в values.yaml позже
+              helm = {
+                valueFiles = [
+                  "$values/{{path}}/values.yaml"         # apps/<ns>/<app>/values.yaml
+                ]
+              }
+            },
+            {
+              repoURL        = var.app_repo_url
+              targetRevision = var.app_repo_branch
+              ref            = "values"
             }
-            syncOptions = [
-              "CreateNamespace=true"
-            ]
+          ]
+
+          syncPolicy = {
+            automated = { prune = true, selfHeal = true }
+            syncOptions = ["CreateNamespace=true"]
           }
+
           revisionHistoryLimit = 2
         }
       }
     }
   }
 
-  depends_on = [
-    helm_release.argo
-  ]
+  depends_on = [helm_release.argo]
 }
+
