@@ -40,16 +40,16 @@ resource "kubernetes_manifest" "argocd_gitops_repo" {
     spec = {
       project = "default"
 
-      source = {
-        repoURL        = "https://github.com/Ember1995/goit-argo-9"
-        targetRevision = "main"
-        path           = "applications"
-      }
+    source = {
+      repoURL        = "https://github.com/Ember1995/goit-argo-9"
+      targetRevision = "main"
+      path           = "mlops-experiments/argocd/applications"
+    }
 
-      destination = {
-        server    = "https://kubernetes.default.svc"
-        namespace = "default"
-      }
+    destination = {
+      server    = "https://kubernetes.default.svc"
+      namespace = kubernetes_namespace.argo.metadata[0].name  # infra-tools
+    }
 
       syncPolicy = {
         automated = {
