@@ -43,7 +43,7 @@ variable "argocd_chart_version" {
 variable "app_repo_url" {
   description = "Публічний Git-репозиторій з маніфестами"
   type        = string
-  default     = "https://github.com/Ember1995/goit-argo.git"
+  default     = "https://github.com/Ember1995/goit-argo-9.git"
 }
 
 variable "app_repo_branch" {
