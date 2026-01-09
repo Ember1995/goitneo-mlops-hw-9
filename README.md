@@ -1,4 +1,4 @@
-# ArgoCD + MLflow GitOps Deployment (Lesson 7)
+# ArgoCD + MLflow GitOps Deployment
 
 ## Загальна послідовність виконнаня роботи
 
@@ -32,24 +32,21 @@ cd terraform/argocd
 terraform init -reconfigure
 terraform plan
 ```
-Скрін:
-![argocd_terra_init](./screens/argocd_terra_init.png)
+
 
 
 ## 2. Деплой ArgoCD через Terraform
 ```
 terraform apply
 ```
-Скріни:
-![argocd_terra_apply](./screens/argocd_terra_apply.png)
+
 
 
 ## 3. Перевірка pod-ів ArgoCD
 ```
 kubectl get pods -n infra-tools
 ```
-Скрін:
-![argocd_get_pods](./screens/argocd_get_pods.png)
+
 
 
 ## 4. Отримання паролю для входу в UI ArgoCD
@@ -57,15 +54,13 @@ kubectl get pods -n infra-tools
 kubectl -n infra-tools get secret argocd-initial-admin-secret \
   -o jsonpath="{.data.password}" | base64 -d && echo
 ```
-![argocd_admin](./screens/argocd_admin.png)
+
 
 
 ## 5. Відкриття ArgoCD UI через port-forward
 ```
 kubectl port-forward svc/argocd-server -n infra-tools 8080:80
 ```
-Скрін:
-![argocd_port_forward](./screens/argocd_port_forward.png)
 Після цього UI доступний за адресою: http://localhost:8080
 
 
@@ -109,8 +104,6 @@ argocd.argoproj.io/application-set-refresh=force --overwrite
 ```
 kubectl get applications -n infra-tools
 ```
-Скріни:
-![infra_tools_get_applications](./screens/infra_tools_get_applications.png)
 
 
 ## 9. Додавання ArgoCD Application для MLflow у Git
@@ -123,25 +116,19 @@ git push
 
 
 ## 10. Перевірка стану додатка
-![get_applicaions_n_infra_tools.png](./screens/get_applicaions_n_infra_tools.png)
-
+У UI інтерфейсі. 
 
 ## 11. Перевірка pod-ів MLflow
 ```
 kubectl get pods -n application
 ```
-Скрін:
-![get_pods_n_applications](./screens/get_pods_n_applications.png)
 
 
 ## 12. Перекидання MLflow через port-forward для доступу через UI
 ```
 kubectl port-forward svc/mlflow -n application 5000:5000
 ```
-Скрін:
-![mlflow_app](./screens/mlflow_app.png)
 
 
 ## 13. Перегляд Applications у UI ArgoCD
-Скрін:
-![argocd_apps](./screens/argocd_apps.png)
+У UI інтерфейсі. 
